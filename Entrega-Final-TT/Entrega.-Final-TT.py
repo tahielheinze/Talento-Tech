@@ -111,13 +111,41 @@ def validar_nombre_producto():
         return nombre.capitalize() #Regresa el nombre ya validado en formato Capitalize.
 
 # Validar nombre al actualizarlo
-def validar_nombre_actualizado():
+def validar_nombre_actualizado(nombre_actual, id_producto):
     while True:
-        nombre = str(input(f"El producto {nombre} ya se encuentra agregado."))
+        nombre = input(f"Nuevo nombre [{nombre_actual}]: ").strip()
+        #Si el usuario presiona Enter, conserver el nombre actual.
         if nombre == "":
-            print(f"{Fore.RED}El nombre del producto no puede estar vacío.{Style.RESET_ALL}")
+            return nombre_actual
+        #Validar que no este vacio 
+        if len(nombre) == 0:
+            print(f"{Fore.RED}El nombre no puede estar vacío.{Style.RESET_ALL}")
             continue
-        return nombre.capitalize()
+        
+        # Verificar si el nombre ya existe (excepto para este producto)
+        conexion = conectar_db()
+        if conexion:
+            try:
+                cursor = conexion.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) FROM productos WHERE LOWER(nombre) = LOWER(?) AND id != ?", 
+                    (nombre, id_producto)
+                )
+                existe = cursor.fetchone()[0] > 0
+                
+                if existe:
+                    print(f"{Fore.RED}El nombre '{nombre}' ya existe para otro producto.{Style.RESET_ALL}")
+                    continue
+                
+                return nombre.capitalize()
+                
+            except sqlite3.Error as e:
+                print(f"{Fore.RED}Error al validar el nombre: {e}{Style.RESET_ALL}")
+                return nombre_actual
+            finally:
+                conexion.close()
+        else:
+            return nombre_actual
 
 
 # Valida la descripción del producto.
@@ -300,7 +328,7 @@ def actualizar_producto():
         existe = cursor.fetchone()[0] > 0
         if existe:
             print(f"El nombre '{nombre}' ya existe. Manteniendo nombre actual.")
-            nombre = producto[1]
+            nombre = validar_nombre_actualizado(producto[1], id_producto)
         else:
             nombre = nombre.capitalize()
     
